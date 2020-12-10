@@ -6,11 +6,15 @@ import * as moment from 'moment';
 import {catchError} from 'rxjs/operators';
 import {throwError} from 'rxjs';
 import { CoursesService } from 'app/services/courses.service';
+import { LoadingService } from 'app/loading/loading.service';
 
 @Component({
     selector: 'course-dialog',
     templateUrl: './course-dialog.component.html',
-    styleUrls: ['./course-dialog.component.css']
+    styleUrls: ['./course-dialog.component.css'],
+    providers: [
+        LoadingService
+      ]
 })
 export class CourseDialogComponent implements AfterViewInit {
 
@@ -22,7 +26,8 @@ export class CourseDialogComponent implements AfterViewInit {
         private coursesService: CoursesService,
         private fb: FormBuilder,
         private dialogRef: MatDialogRef<CourseDialogComponent>,
-        @Inject(MAT_DIALOG_DATA) course:Course) {
+        @Inject(MAT_DIALOG_DATA) course:Course,
+        private loadingService: LoadingService) {
 
         this.course = course;
 
@@ -32,7 +37,7 @@ export class CourseDialogComponent implements AfterViewInit {
             releasedAt: [moment(), Validators.required],
             longDescription: [course.longDescription,Validators.required]
         });
-
+       
     }
 
     ngAfterViewInit() {
@@ -41,7 +46,10 @@ export class CourseDialogComponent implements AfterViewInit {
 
     save() {
         const changes = this.form.value;
-    this.coursesService.saveCourse(this.course.id , changes).subscribe((resp) => {
+
+        const saveCourse$ = this.coursesService.saveCourse(this.course.id , changes); 
+
+        this.loadingService.showLoaderUntilCompleted(saveCourse$).subscribe((resp) => {
         this.dialogRef.close(resp);
     });
     }
