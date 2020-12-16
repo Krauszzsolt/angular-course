@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { Course, sortCoursesBySeqNo } from '../model/course';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, map, shareReplay, tap } from 'rxjs/operators';
 import { HttpClient } from '@angular/common/http';
 import { LoadingService } from 'app/loading/loading.service';
 import { MessagesService } from 'app/messages/messages.service';
@@ -28,7 +28,7 @@ export class CoursesStore {
         return throwError(err);
       }),
       tap((courses) => {
-        this.subject.next(courses)
+        this.subject.next(courses);
       })
     );
 
@@ -36,14 +36,30 @@ export class CoursesStore {
   }
 
   public filterByCategory(category: string): Observable<Course[]> {
-    return this.courses$.pipe(     
-      map((courses) =>
-        courses
-          .filter((course) => 
-            course.category == category
-          )
-          .sort(sortCoursesBySeqNo)          
-      )
+    return this.courses$.pipe(
+      map((courses) => courses.filter((course) => course.category == category).sort(sortCoursesBySeqNo))
     );
+  }
+
+  public saveCourse(courseId: string, changes: Partial<Course>): Observable<any> {
+    const courses = this.subject.getValue();
+    const index = courses.findIndex((course) => course.id === courseId);
+    const newCourse = {
+      ...courses[index],
+      ...changes,
+    };
+    const newCourses: Course[] = courses.slice(0);
+    newCourses[index] = newCourse;
+    this.subject.next(newCourses);
+
+   return this.http.put(`/api/courses/${courseId}`, changes).pipe(
+      shareReplay(),
+      catchError((err) => {
+        const message = 'Could not save courses';
+        this.message.showErrors(message);
+        console.log(message, err);
+        return throwError(err);
+      }),
+    )
   }
 }
